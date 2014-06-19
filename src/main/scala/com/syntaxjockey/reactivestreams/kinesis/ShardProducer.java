@@ -30,8 +30,11 @@ public class ShardProducer implements Producer<Record> {
      * @param shardIterator
      * @param scheduledExecutorService
      */
-    public ShardProducer(AmazonKinesisAsyncClient asyncClient, String shardIterator, ScheduledExecutorService scheduledExecutorService) {
-        publisher = new ShardPublisher(asyncClient, shardIterator, scheduledExecutorService);
+    public ShardProducer(AmazonKinesisAsyncClient asyncClient,
+                         String shardIterator,
+                         ScheduledExecutorService scheduledExecutorService,
+                         Integer maxElements) {
+        publisher = new ShardPublisher(asyncClient, shardIterator, scheduledExecutorService, maxElements);
         logger.debug("initialized ShardProducer for shardIterator {}", shardIterator);
     }
 
@@ -73,7 +76,8 @@ public class ShardProducer implements Producer<Record> {
      */
     static ShardProducer fromStream(AmazonKinesisAsyncClient asyncClient,
                                     GetShardIteratorRequest getShardIteratorRequest,
-                                    ScheduledExecutorService scheduledExecutorService) throws AmazonKinesisException {
+                                    ScheduledExecutorService scheduledExecutorService,
+                                    Integer maxElements) throws AmazonKinesisException {
         Logger logger = LoggerFactory.getLogger(ShardProducer.class);
         try {
             logger.debug("building ShardProducer for stream {}, shard {}",
@@ -82,7 +86,7 @@ public class ShardProducer implements Producer<Record> {
             GetShardIteratorResult getShardIteratorResult = asyncClient.getShardIterator(getShardIteratorRequest);
             String shardIterator = getShardIteratorResult.getShardIterator();
             logger.debug("shard iterator is {}", shardIterator);
-            return new ShardProducer(asyncClient, shardIterator, scheduledExecutorService);
+            return new ShardProducer(asyncClient, shardIterator, scheduledExecutorService, maxElements);
         } catch (Exception exception) {
             throw new AmazonKinesisException(exception);
         }
@@ -101,12 +105,13 @@ public class ShardProducer implements Producer<Record> {
                                     String streamName,
                                     String shardId,
                                     ShardIteratorType shardIteratorType,
-                                    ScheduledExecutorService scheduledExecutorService) throws AmazonKinesisException {
+                                    ScheduledExecutorService scheduledExecutorService,
+                                    Integer maxElements) throws AmazonKinesisException {
         GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest()
                 .withStreamName(streamName)
                 .withShardId(shardId)
                 .withShardIteratorType(shardIteratorType);
-        return fromStream(asyncClient, getShardIteratorRequest, scheduledExecutorService);
+        return fromStream(asyncClient, getShardIteratorRequest, scheduledExecutorService, maxElements);
     }
 
     /**
@@ -124,12 +129,13 @@ public class ShardProducer implements Producer<Record> {
                                     String shardId,
                                     ShardIteratorType shardIteratorType,
                                     String startingSequenceNumber,
-                                    ScheduledExecutorService scheduledExecutorService) throws AmazonKinesisException {
+                                    ScheduledExecutorService scheduledExecutorService,
+                                    Integer maxElements) throws AmazonKinesisException {
         GetShardIteratorRequest getShardIteratorRequest = new GetShardIteratorRequest()
                 .withStreamName(streamName)
                 .withShardId(shardId)
                 .withShardIteratorType(shardIteratorType)
                 .withStartingSequenceNumber(startingSequenceNumber);
-        return fromStream(asyncClient, getShardIteratorRequest, scheduledExecutorService);
+        return fromStream(asyncClient, getShardIteratorRequest, scheduledExecutorService, maxElements);
     }
 }

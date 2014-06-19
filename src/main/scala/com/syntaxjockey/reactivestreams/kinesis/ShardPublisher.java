@@ -34,10 +34,12 @@ public class ShardPublisher implements Publisher<Record>, Subscription {
     private Subscriber<Record> subscriber = null;
     private String shardIterator = null;
     private Integer numRequested = 0;
+    private Integer elementsLeft = -1;
     private LinkedList<Record> queued = new LinkedList<>();
     private GetRecordsHandler getRecordsHandler = new GetRecordsHandler();
     private Future<GetRecordsResult> getRecordsResultFuture = null;
     private ScheduledFuture nextTickResultFuture = null;
+    private Throwable error = null;
 
     /**
      *
@@ -45,10 +47,14 @@ public class ShardPublisher implements Publisher<Record>, Subscription {
      * @param shardIterator
      * @param scheduledExecutorService
      */
-    public ShardPublisher(AmazonKinesisAsyncClient asyncClient, String shardIterator, ScheduledExecutorService scheduledExecutorService) {
+    public ShardPublisher(AmazonKinesisAsyncClient asyncClient,
+                          String shardIterator,
+                          ScheduledExecutorService scheduledExecutorService,
+                          Integer maxElements) {
         this.asyncClient = asyncClient;
-        this.shardIterator = shardIterator;
         this.scheduledExecutorService = scheduledExecutorService;
+        this.shardIterator = shardIterator;
+        this.elementsLeft = maxElements;
     }
 
     /**
@@ -87,18 +93,8 @@ public class ShardPublisher implements Publisher<Record>, Subscription {
     @Override
     public synchronized void cancel() {
         logger.debug("cancelling subscription");
-        if (nextTickResultFuture != null) {
-            nextTickResultFuture.cancel(true);
-            nextTickResultFuture = null;
-        }
-        if (getRecordsResultFuture != null) {
-            getRecordsResultFuture.cancel(true);
-            getRecordsResultFuture = null;
-        }
         subscriber.onComplete();
-        subscriber = null;
-        numRequested = 0;
-        queued = null;
+        shutdown();
     }
 
     /**
@@ -114,7 +110,24 @@ public class ShardPublisher implements Publisher<Record>, Subscription {
     public synchronized void requestMore(int elements) {
         logger.debug("subscriber requests {} records", elements);
         numRequested += elements;
-        pull();
+    }
+
+    /**
+     * Checks if publisher is in 'error' state.
+     *
+     * @return true if the publisher is in 'error' state, otherwise false.
+     */
+    public synchronized Boolean isError() {
+        return error != null;
+    }
+
+    /**
+     * Checks if publisher is in 'completed' state.
+     *
+     * @return true if the publisher is in 'completed' state, otherwise false.
+     */
+    public synchronized Boolean isCompleted() {
+       return elementsLeft == 0;
     }
 
     /**
@@ -138,25 +151,52 @@ public class ShardPublisher implements Publisher<Record>, Subscription {
      * @param getRecordsResult
      */
     private synchronized void push(GetRecordsResult getRecordsResult) {
+        // invariant:
+        assert(elementsLeft != 0);
+        /* store the next shard iterator */
         shardIterator = getRecordsResult.getNextShardIterator();
         getRecordsResultFuture = null;
+        /* append records to the queue */
         List<Record> records = getRecordsResult.getRecords();
         queued.addAll(records);
         logger.debug("received {} records", records.size());
         Integer numPushed = 0;
         try {
             /* notify subscriber of requested elements */
-            while (numRequested > 0) {
-                subscriber.onNext(queued.remove());
+            while (numRequested > 0 && elementsLeft != 0) {
+                Record record = queued.remove();    // may throw NoSuchElementException
+                subscriber.onNext(record);
                 numRequested--;
                 numPushed++;
+                if (elementsLeft > 0)   // decrement only if count is positive (negative means infinite stream)
+                    elementsLeft--;
             }
-            /* there are zero or more elements left queued after fulfilling subscriber requests */
             logger.debug("pushed {} records, {} records queued", numPushed, queued.size());
+            /* if stream is finite, then check if we are complete */
+            if (elementsLeft == 0) {
+                subscriber.onComplete();
+                shutdown();
+            }
         } catch (NoSuchElementException e) {
-            /* there are outstanding requests */
             logger.debug("pushed {} records, {} requests outstanding ", numPushed, numRequested);
         }
+    }
+
+    /**
+     * Only call this method within synchronized context.
+     */
+    private void shutdown() {
+        if (nextTickResultFuture != null) {
+            nextTickResultFuture.cancel(true);
+            nextTickResultFuture = null;
+        }
+        if (getRecordsResultFuture != null) {
+            getRecordsResultFuture.cancel(true);
+            getRecordsResultFuture = null;
+        }
+        subscriber = null;
+        numRequested = 0;
+        queued = null;
     }
 
     /**
