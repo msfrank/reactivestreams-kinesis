@@ -1,4 +1,5 @@
 aws.credentials
 target
+test-output
 project/target
 project/project

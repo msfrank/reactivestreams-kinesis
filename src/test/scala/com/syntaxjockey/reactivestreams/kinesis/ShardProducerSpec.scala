@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.util.{Success, Failure}
 
 class ShardProducerSpec(_system: ActorSystem) extends TestKit(_system) with ImplicitSender with WordSpec with MustMatchers {
 
@@ -36,7 +35,7 @@ class ShardProducerSpec(_system: ActorSystem) extends TestKit(_system) with Impl
       val client = new AmazonKinesisAsyncClient(credentials)
       client.setEndpoint("kinesis.us-east-1.amazonaws.com", "kinesis", "us-east-1")
 
-      val kinesis = ShardProducer.fromStream(client, "reactivestreams-kinesis-test", "shardId-000000000000", ShardIteratorType.TRIM_HORIZON, scheduler)
+      val kinesis = ShardProducer.fromStream(client, "reactivestreams-kinesis-test", "shardId-000000000000", ShardIteratorType.TRIM_HORIZON, scheduler, -1)
 
       val future = Flow(kinesis).take(3).map { record =>
         new String(record.getData.array())
