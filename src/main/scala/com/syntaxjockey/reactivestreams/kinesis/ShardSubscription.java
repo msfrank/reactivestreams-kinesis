@@ -3,8 +3,8 @@ package com.syntaxjockey.reactivestreams.kinesis;
 import com.amazonaws.handlers.AsyncHandler;
 import com.amazonaws.services.kinesis.AmazonKinesisAsyncClient;
 import com.amazonaws.services.kinesis.model.*;
-import org.reactivestreams.Subscriber;
-import org.reactivestreams.Subscription;
+import org.reactivestreams.spi.Subscriber;
+import org.reactivestreams.spi.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,16 +101,16 @@ public class ShardSubscription implements Subscription {
     }
 
     /**
-     * Request more data from the {@link org.reactivestreams.Publisher Publisher}
+     * Request more data from the {@link org.reactivestreams.spi.Publisher Publisher}
      * which produced this Subscription. The number of requested elements is cumulative
      * to the number requested previously. The Publisher may eventually publish up to the
-     * requested number of elements to the {@link org.reactivestreams.Subscriber Subscriber}
+     * requested number of elements to the {@link org.reactivestreams.spi.Subscriber Subscriber}
      * which owns this Subscription.
      *
      * @param elements The number of elements requested.
      */
     @Override
-    public synchronized void request(int elements) {
+    public synchronized void requestMore(int elements) {
         logger.debug("subscriber requests {} records", elements);
         numRequested += elements;
     }
@@ -186,9 +186,9 @@ public class ShardSubscription implements Subscription {
     }
 
     /**
-     * Cancel this subscription. The {@link org.reactivestreams.Publisher Publisher}
+     * Cancel this subscription. The {@link org.reactivestreams.spi.Publisher Publisher}
      * to which produced this Subscription will eventually stop sending more elements to
-     * the {@link org.reactivestreams.Subscriber Subscriber} which owns this Subscription.
+     * the {@link org.reactivestreams.spi.Subscriber Subscriber} which owns this Subscription.
      * This may happen before the requested number of elements has been delivered, even if
      * the Publisher would still have more elements.
      */

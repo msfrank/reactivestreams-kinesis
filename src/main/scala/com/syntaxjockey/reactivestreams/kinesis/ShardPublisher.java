@@ -3,8 +3,8 @@ package com.syntaxjockey.reactivestreams.kinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisAsyncClient;
 import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
-import org.reactivestreams.Publisher;
-import org.reactivestreams.Subscriber;
+import org.reactivestreams.spi.Publisher;
+import org.reactivestreams.spi.Subscriber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,7 +49,7 @@ public class ShardPublisher implements Publisher<Record> {
     }
 
     /**
-     * Subscribe the given {@link org.reactivestreams.Subscriber Subscriber} to this
+     * Subscribe the given {@link org.reactivestreams.spi.Subscriber Subscriber} to this
      * Publisher. A Subscriber can at most be subscribed once to a given Publisher, and
      * to at most one Publisher in total.
      *

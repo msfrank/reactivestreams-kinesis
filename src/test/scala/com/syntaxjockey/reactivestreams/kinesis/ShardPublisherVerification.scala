@@ -2,7 +2,7 @@ package com.syntaxjockey.reactivestreams.kinesis
 
 import org.scalatest.testng.TestNGSuite
 import org.testng.annotations.BeforeSuite
-import org.reactivestreams.Publisher
+import org.reactivestreams.spi.Publisher
 import org.reactivestreams.tck.{TestEnvironment, PublisherVerification}
 import com.amazonaws.services.kinesis.AmazonKinesisAsyncClient
 import com.amazonaws.services.kinesis.model._
