@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.concurrent.*;
 
 /**
@@ -33,6 +34,7 @@ public class ShardSubscription implements Subscription {
     private final long nextTickPeriod = 5;
 
     /* state */
+    private final Set<Subscriber<Record>> subscriberSet;
     private Integer numRequested = 0;
     private LinkedList<Record> queued = new LinkedList<>();
     private Integer elementsLeft = -1;
@@ -48,6 +50,7 @@ public class ShardSubscription implements Subscription {
      *
      */
     public ShardSubscription(Subscriber<Record> subscriber,
+                             Set<Subscriber<Record>> subscriberSet,
                              AmazonKinesisAsyncClient asyncClient,
                              ScheduledExecutorService scheduledExecutorService,
                              String streamName,
@@ -57,6 +60,7 @@ public class ShardSubscription implements Subscription {
                              Integer maxElements) {
         /* set config */
         this.subscriber = subscriber;
+        this.subscriberSet = subscriberSet;
         this.asyncClient = asyncClient;
         this.scheduledExecutorService = scheduledExecutorService;
         this.streamName = streamName;
@@ -214,6 +218,7 @@ public class ShardSubscription implements Subscription {
         numRequested = 0;
         queued = null;
         shardIterator = null;
+        subscriberSet.remove(subscriber);
     }
 
     /**

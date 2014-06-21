@@ -5,9 +5,14 @@ import com.amazonaws.services.kinesis.model.Record;
 import com.amazonaws.services.kinesis.model.ShardIteratorType;
 import org.reactivestreams.spi.Publisher;
 import org.reactivestreams.spi.Subscriber;
+import org.reactivestreams.spi.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.*;
 
 /**
@@ -27,7 +32,7 @@ public class ShardPublisher implements Publisher<Record> {
     private final Integer maxElements;
 
     /* state */
-    private Subscriber<Record> subscriber = null;
+    private Set<Subscriber<Record>> subscriberSet = Collections.synchronizedSet(new HashSet<Subscriber<Record>>());
 
     /**
      *
@@ -57,14 +62,12 @@ public class ShardPublisher implements Publisher<Record> {
      */
     @Override
     public synchronized void subscribe(Subscriber<Record> subscriber) {
-        if (this.subscriber == subscriber) {
+        if (this.subscriberSet.contains(subscriber)) {
             subscriber.onError(new IllegalStateException("ShardPublisher is already subscribed to"));
-        }
-        else if (this.subscriber != null) {
-            subscriber.onError(new Exception("ShardPublisher is already subscribed to"));
         } else {
-            this.subscriber = subscriber;
+            this.subscriberSet.add(subscriber);
             ShardSubscription subscription = new ShardSubscription(subscriber,
+                                                                   subscriberSet,
                                                                    asyncClient,
                                                                    scheduledExecutorService,
                                                                    streamName,
